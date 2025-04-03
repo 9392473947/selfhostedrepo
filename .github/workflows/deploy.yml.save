@@ -1,0 +1,38 @@
+name: Deploy Python App
+
+on:
+  push:
+    branches:
+      - main  # Runs the workflow on push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        run: |
+          pytest tests/  # Skip if you don’t have tests
+
+      - name: Deploy to Server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ubuntu
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          scp -i private_key.pem -r * $SERVER_USER@$SERVER_IP:/home/ubuntu/app/
+          ssh -i private_key.pem $SERVER_USER@$SERVER_IP 'bash /home/ubuntu/app/deploy.sh'

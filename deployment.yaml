@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-fastapi-app-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-fastapi-app
+  template:
+    metadata:
+      labels:
+        app: my-fastapi-app
+    spec:
+      containers:
+        - name: emy-fastapi-app
+          image: public.ecr.aws/e2v8h6j1/publicrepo:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
