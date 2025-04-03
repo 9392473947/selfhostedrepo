@@ -1,0 +1,73 @@
+name: Deploy FastAPI
+
+on: 
+  push:
+    branches:
+      - main
+jobs:
+  build-and-push:
+    runs-on: self-hosted
+   #checkout the repository
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+    #install awscli
+      - name: Install AWS CLI
+        run: |
+          aws --version
+    # Install Docker
+      - name: Install Docker
+        run: |
+          sudo apt update
+          sudo apt install -y docker.io
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          sudo usermod -aG docker $USER
+          newgrp docker  # Apply group change immediately
+          docker --version
+
+          #set up aws cli 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+          
+      #login to aws ecr public
+      - name: Login to AWS ECR Public
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/e2v8h6j1
+
+     #building docker image
+      - name: Build Docker image
+        run: |
+          docker buildx create --use  # Enable BuildKit
+          docker build -t fast-api .
+
+          #tag docker image
+      - name: Tag Docker image
+        run: |
+          docker tag fast-api:latest public.ecr.aws/e2v8h6j1/githubaction:latest
+
+      #push docker image to aws ecr pulic
+      - name: Push Docker image to AWS ECR Public
+        run: |
+          docker push public.ecr.aws/e2v8h6j1/githubaction:latest
+
+      #set up kubectl cluster
+      - name : set up kubectl
+        run: |
+          aws eks update-kubeconfig --region ap-south-1 --name chaithucluster
+
+      - name: deploy using kubectl
+        run: |
+          kubectl apply -f deployment.yaml
+          kubectl apply -f service.yaml
+
+      - name: verify set up
+        run: |
+          kubectl get pods
+
+          
